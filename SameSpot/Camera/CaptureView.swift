@@ -10,6 +10,7 @@ struct CaptureView: View {
     @EnvironmentObject private var camera: CameraModel
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @AppStorage(SettingsKey.showGrid) private var showGrid = true
     @AppStorage(SettingsKey.flash) private var flash: FlashSetting = .off
@@ -105,6 +106,12 @@ struct CaptureView: View {
             viewerItem = nil
             cancelCountdown()
         }
+        // Leaving the app mid-countdown would fire the shot on return, before anyone has lined up again.
+        .onChange(of: scenePhase) {
+            if scenePhase != .active {
+                cancelCountdown()
+            }
+        }
         // A retake that ends some other way (tab switch, reminder tap) takes its pending review with it,
         // or Retake on that review would drop into normal mode and save the next shot as a frame.
         .onChange(of: router.retakeProjectID) { oldValue, newValue in
@@ -150,6 +157,8 @@ struct CaptureView: View {
                 }
                 Divider()
                 Button {
+                    // A sheet doesn't take the camera off screen, so the countdown wouldn't stop on its own.
+                    cancelCountdown()
                     showingNewProject = true
                 } label: {
                     Label("New Project", systemImage: "plus")
