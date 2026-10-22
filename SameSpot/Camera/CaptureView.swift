@@ -17,6 +17,9 @@ struct CaptureView: View {
     // guide can't get stuck at full strength.
     @GestureState private var isPeeking = false
     @State private var review: Review?
+    /// Identifies the original or retake shot in flight. Cleared if the project or retake changes
+    /// before the photo comes back, so a late photo can't open a review nobody asked for anymore.
+    @State private var pendingOriginalShot: UUID?
     @State private var flashOpacity: Double = 0
     @State private var toast: Toast?
     @State private var shutterCount = 0
@@ -86,6 +89,7 @@ struct CaptureView: View {
         .onChange(of: project.id, initial: true) {
             opacity = project.overlayOpacity
             review = nil
+            pendingOriginalShot = nil
             // Never draw the last project's guide over this one while its own decodes.
             overlayImage = overlayURL.flatMap { ImageLoader.shared.cachedImage(at: $0, maxPixel: 1600) }
         }
@@ -97,6 +101,7 @@ struct CaptureView: View {
         .onChange(of: router.retakeProjectID) { oldValue, newValue in
             if oldValue == project.id, newValue != project.id {
                 review = nil
+                pendingOriginalShot = nil
             }
         }
         .task(id: overlayURL) {
@@ -396,6 +401,7 @@ struct CaptureView: View {
                 router.retakeProjectID = nil
             }
             .foregroundStyle(Color.white)
+            .disabled(camera.isCapturing)
         case .original:
             EmptyView()
         }
@@ -427,6 +433,8 @@ struct CaptureView: View {
         let projectID = project.id
         // Once a project has an original, every photo uses its rotation.
         let lockedAngle: Double? = project.hasTemplate ? project.captureAngle : nil
+        let shot = UUID()
+        pendingOriginalShot = currentMode == .frame ? nil : shot
 
         withAnimation(.easeIn(duration: 0.05)) {
             flashOpacity = 0.85
@@ -444,7 +452,8 @@ struct CaptureView: View {
                 shutterCount += 1
                 if currentMode == .frame {
                     saveFrame(photo, to: projectID)
-                } else {
+                } else if pendingOriginalShot == shot {
+                    pendingOriginalShot = nil
                     review = Review(
                         projectID: projectID,
                         photo: photo,
