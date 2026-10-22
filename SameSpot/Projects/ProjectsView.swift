@@ -85,6 +85,6 @@ struct ProjectRow: View {
         let count = project.frames.count
         let photos = count == 1 ? "1 photo" : "\(count) photos"
         guard let last = project.frames.last else { return photos }
-        return "\(photos), last \(last.date.formatted(.relative(presentation: .named)))"
+        return "\(photos), newest \(last.date.formatted(.relative(presentation: .named)))"
     }
 }

@@ -192,7 +192,8 @@ enum VideoMaker {
 
 /// Runs a render in the background, publishes how far along it is, then plays the result on a loop.
 /// It owns the temporary file, so the file goes away when the export sheet does.
-final class TimelapseRenderer: ObservableObject {
+/// Unchecked Sendable because every property is only read or written on the main queue.
+final class TimelapseRenderer: ObservableObject, @unchecked Sendable {
     enum State: Equatable {
         case idle
         case rendering(Double)

@@ -23,9 +23,9 @@ extension ProjectStore {
                       date: morning.addingTimeInterval(8 * 3600)
                   ) else { continue }
             if day == 0 {
-                try? setTemplate(photo, for: project.id)
+                _ = try? setTemplate(photo, for: project.id)
             } else {
-                try? addFrame(photo, to: project.id)
+                _ = try? addFrame(photo, to: project.id)
             }
         }
     }
