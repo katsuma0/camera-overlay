@@ -1,0 +1,96 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (Xcode ${{ matrix.xcode }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest Xcode the project format supports, and the newest on the runner.
+        xcode: ["16", "newest"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick Xcode
+        run: |
+          ls -d /Applications/Xcode_*.app
+          if [ "${{ matrix.xcode }}" = "newest" ]; then
+            XCODE=$(ls -d /Applications/Xcode_*.app | grep -Ev 'beta|Release_Candidate' | sort -V | tail -1)
+          else
+            XCODE=$(ls -d /Applications/Xcode_${{ matrix.xcode }}*.app | grep -Ev 'beta|Release_Candidate' | sort -V | tail -1)
+          fi
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Build for iPhone
+        run: |
+          xcodebuild build \
+            -project SameSpot.xcodeproj \
+            -scheme SameSpot \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/device \
+            CODE_SIGNING_ALLOWED=NO > device.log 2>&1 || {
+              grep -E "error:" device.log | sort -u
+              tail -80 device.log
+              exit 1
+            }
+          echo "Warnings:"
+          grep -E "\.swift:[0-9]+:[0-9]+: warning:" device.log | sort -u || true
+
+      - name: Build for Simulator
+        run: |
+          xcodebuild build \
+            -project SameSpot.xcodeproj \
+            -scheme SameSpot \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim \
+            CODE_SIGNING_ALLOWED=NO > sim.log 2>&1 || {
+              grep -E "error:" sim.log | sort -u
+              tail -80 sim.log
+              exit 1
+            }
+          echo "Warnings:"
+          grep -E "\.swift:[0-9]+:[0-9]+: warning:" sim.log | sort -u || true
+
+      # Launches the app with the demo project and photographs each tab, so layout problems
+      # show up in review without anyone opening Xcode.
+      - name: Screenshots
+        if: matrix.xcode == 'newest'
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone"))] | last | .udid')
+          echo "Simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          APP=build/sim/Build/Products/Debug-iphonesimulator/SameSpot.app
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots small
+          for TAB in camera library projects; do
+            xcrun simctl terminate "$UDID" com.katsumaonishi.SameSpot || true
+            xcrun simctl launch "$UDID" com.katsumaonishi.SameSpot -launchTab "$TAB" -demo
+            sleep 8
+            xcrun simctl io "$UDID" screenshot "shots/$TAB.png"
+            sips -Z 640 -s format jpeg -s formatOptions 70 "shots/$TAB.png" --out "small/$TAB.jpg" > /dev/null
+          done
+          for TAB in camera library projects; do
+            echo "=====BEGIN $TAB====="
+            base64 -i "small/$TAB.jpg" | fold -w 120
+            echo "=====END $TAB====="
+          done
+
+      - name: Upload screenshots
+        if: matrix.xcode == 'newest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/
