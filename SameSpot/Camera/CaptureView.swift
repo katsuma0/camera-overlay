@@ -92,6 +92,13 @@ struct CaptureView: View {
         .onChange(of: router.reminderTapCount) {
             viewerItem = nil
         }
+        // A retake that ends some other way (tab switch, reminder tap) takes its pending review with it,
+        // or Retake on that review would drop into normal mode and save the next shot as a frame.
+        .onChange(of: router.retakeProjectID) { oldValue, newValue in
+            if oldValue == project.id, newValue != project.id {
+                review = nil
+            }
+        }
         .task(id: overlayURL) {
             guard let url = overlayURL else {
                 overlayImage = nil
@@ -158,7 +165,10 @@ struct CaptureView: View {
         Binding {
             project.id
         } set: { id in
-            router.openCamera(for: id)
+            // Re-picking the checked project is how people close the menu. It shouldn't cancel a retake.
+            if id != project.id {
+                router.openCamera(for: id)
+            }
         }
     }
 

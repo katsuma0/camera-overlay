@@ -73,7 +73,7 @@ struct ProjectRow: View {
                 Text(detailLine)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if project.hasTemplate && project.reminders.isOn {
+                if project.reminders.isOn {
                     Label(project.reminders.shortSummary, systemImage: "bell")
                         .font(.caption)
                         .foregroundStyle(.secondary)

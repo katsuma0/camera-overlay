@@ -89,9 +89,9 @@ final class CameraModel: NSObject, ObservableObject {
         guard !Self.isSimulator else { return }
         queue.async {
             self.wantsRunning = false
-            if self.session.isRunning {
-                self.session.stopRunning()
-            }
+            // Unconditional on purpose. An interrupted session reports not running but restarts itself
+            // when the interruption ends, unless it was told to stop.
+            self.session.stopRunning()
         }
     }
 

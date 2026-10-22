@@ -6,6 +6,7 @@ struct VideoExportView: View {
     let projectID: UUID
 
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.dismiss) private var dismiss
     @AppStorage("videoFPS") private var fps = 12
     @AppStorage("videoQuality") private var quality: VideoQuality = .standard
@@ -53,6 +54,11 @@ struct VideoExportView: View {
         }
         // Swiping away mid-render would leave it running with nothing to show it.
         .interactiveDismissDisabled(isRendering)
+        // A reminder tap heads for the camera. Stop the render rather than leave it running unseen.
+        .onChange(of: router.reminderTapCount) {
+            renderer.cancel()
+            dismiss()
+        }
     }
 
     @ViewBuilder

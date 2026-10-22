@@ -112,8 +112,8 @@ struct ProjectDetailView: View {
             }
         }
         // A reminder tap switches to the camera. Anything open here would sit on top of it.
+        // The video sheet closes itself so it can stop its render first.
         .onChange(of: router.reminderTapCount) {
-            showingVideo = false
             showingRename = false
             confirmingDelete = false
         }
