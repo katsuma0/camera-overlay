@@ -9,13 +9,17 @@ struct CaptureView: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var camera: CameraModel
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @AppStorage("showGrid") private var showGrid = true
+    @AppStorage(SettingsKey.showGrid) private var showGrid = true
+    @AppStorage(SettingsKey.flash) private var flash: FlashSetting = .off
+    @AppStorage(SettingsKey.timer) private var timerSeconds = 0
+    @AppStorage(SettingsKey.haptics) private var haptics = true
+    @AppStorage(SettingsKey.shutterBlink) private var shutterBlink = true
     @State private var opacity: Double = 0.35
     @State private var overlayImage: UIImage?
-    // Gesture state resets itself if the hold is interrupted (a call, Control Center), so the
-    // guide can't get stuck at full strength.
-    @GestureState private var isPeeking = false
+    @State private var countdown: Int?
+    @State private var countdownTask: Task<Void, Never>?
     @State private var review: Review?
     /// Identifies the original or retake shot in flight. Cleared if the project or retake changes
     /// before the photo comes back, so a late photo can't open a review nobody asked for anymore.
@@ -85,8 +89,12 @@ struct CaptureView: View {
         .navigationTitle(project.name)
         .toolbar { toolbarContent }
         .onAppear { camera.start() }
-        .onDisappear { camera.stop() }
+        .onDisappear {
+            cancelCountdown()
+            camera.stop()
+        }
         .onChange(of: project.id, initial: true) {
+            cancelCountdown()
             opacity = project.overlayOpacity
             review = nil
             pendingOriginalShot = nil
@@ -95,11 +103,13 @@ struct CaptureView: View {
         }
         .onChange(of: router.reminderTapCount) {
             viewerItem = nil
+            cancelCountdown()
         }
         // A retake that ends some other way (tab switch, reminder tap) takes its pending review with it,
         // or Retake on that review would drop into normal mode and save the next shot as a frame.
         .onChange(of: router.retakeProjectID) { oldValue, newValue in
             if oldValue == project.id, newValue != project.id {
+                cancelCountdown()
                 review = nil
                 pendingOriginalShot = nil
             }
@@ -114,7 +124,9 @@ struct CaptureView: View {
             guard !Task.isCancelled else { return }
             overlayImage = image
         }
-        .sensoryFeedback(.impact(weight: .medium), trigger: shutterCount)
+        .sensoryFeedback(trigger: shutterCount) { _, _ in
+            haptics ? SensoryFeedback.impact(weight: .medium) : nil
+        }
         .alert("Couldn't Take Photo", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -155,7 +167,31 @@ struct CaptureView: View {
             }
             .accessibilityLabel("Project, \(project.name)")
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                flash = flash.next
+            } label: {
+                Image(systemName: flash.symbol)
+                    .foregroundStyle(flash == .off ? Color.white : Color.yellow)
+            }
+            .accessibilityLabel("Flash, \(flash.title)")
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                timerSeconds = TimerSetting.next(after: timerSeconds)
+            } label: {
+                HStack(spacing: 2) {
+                    Image(systemName: "timer")
+                    if timerSeconds > 0 {
+                        Text("\(timerSeconds)s")
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                }
+                .foregroundStyle(timerSeconds > 0 ? Color.yellow : Color.white)
+            }
+            .accessibilityLabel("Timer, \(TimerSetting.title(timerSeconds))")
+
             Button {
                 showGrid.toggle()
             } label: {
@@ -198,7 +234,7 @@ struct CaptureView: View {
             } else {
                 if let overlayImage {
                     RotatedImage(image: overlayImage, rotation: overlayRotation)
-                        .opacity(isPeeking ? 1 : opacity)
+                        .opacity(opacity)
                         .allowsHitTesting(false)
                 }
                 if showGrid {
@@ -209,6 +245,15 @@ struct CaptureView: View {
             Color.black
                 .opacity(flashOpacity)
                 .allowsHitTesting(false)
+
+            if let countdown {
+                Text("\(countdown)")
+                    .font(.system(size: 120, weight: .thin, design: .rounded))
+                    .foregroundStyle(Color.white)
+                    .shadow(color: Color.black.opacity(0.4), radius: 8)
+                    .contentTransition(.numericText(countsDown: true))
+                    .accessibilityLabel("Taking photo in \(countdown)")
+            }
 
             VStack {
                 hint
@@ -221,7 +266,7 @@ struct CaptureView: View {
                         .padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(.bottom, 14)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
@@ -319,11 +364,12 @@ struct CaptureView: View {
                     leftButton
                         .frame(width: 64, height: 64)
                     Spacer()
-                    ShutterButton(isEnabled: canShoot, isDimmed: !cameraReady) {
-                        shoot()
+                    ShutterButton(isEnabled: canShoot, isDimmed: !cameraReady, isCountingDown: countdown != nil) {
+                        shutterTapped()
                     }
                     Spacer()
-                    peekButton
+                    // Keeps the shutter centred.
+                    Color.clear
                         .frame(width: 64, height: 64)
                 }
             }
@@ -407,26 +453,36 @@ struct CaptureView: View {
         }
     }
 
-    @ViewBuilder
-    private var peekButton: some View {
-        if mode != .original, overlayImage != nil {
-            Image(systemName: isPeeking ? "eye.fill" : "eye")
-                .font(.title3)
-                .foregroundStyle(isPeeking ? Color.yellow : Color.white)
-                .frame(width: 52, height: 52)
-                .background(Color.white.opacity(0.18), in: Circle())
-                .contentShape(Circle())
-                // Hold to see the guide at full strength, let go to go back.
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .updating($isPeeking) { _, peeking, _ in peeking = true }
-                )
-                .accessibilityLabel("Hold to compare")
-                .accessibilityAddTraits(.isButton)
+    // MARK: Actions
+
+    /// With the timer on, the shutter starts a countdown, and a second tap cancels it.
+    private func shutterTapped() {
+        if countdownTask != nil {
+            cancelCountdown()
+            return
+        }
+        guard timerSeconds > 0 else {
+            shoot()
+            return
+        }
+        let seconds = timerSeconds
+        countdownTask = Task {
+            for remaining in stride(from: seconds, through: 1, by: -1) {
+                withAnimation { countdown = remaining }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+            }
+            countdown = nil
+            countdownTask = nil
+            shoot()
         }
     }
 
-    // MARK: Actions
+    private func cancelCountdown() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        countdown = nil
+    }
 
     private func shoot() {
         let currentMode = mode
@@ -436,15 +492,17 @@ struct CaptureView: View {
         let shot = UUID()
         pendingOriginalShot = currentMode == .frame ? nil : shot
 
-        withAnimation(.easeIn(duration: 0.05)) {
-            flashOpacity = 0.85
-        } completion: {
-            withAnimation(.easeOut(duration: 0.25)) {
-                flashOpacity = 0
+        if shutterBlink && !reduceMotion {
+            withAnimation(.easeIn(duration: 0.05)) {
+                flashOpacity = 0.85
+            } completion: {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    flashOpacity = 0
+                }
             }
         }
 
-        camera.capture(lockedAngle: lockedAngle) { result in
+        camera.capture(lockedAngle: lockedAngle, flash: flash) { result in
             switch result {
             case .failure(let error):
                 errorMessage = error.localizedDescription
@@ -562,6 +620,7 @@ struct HintPill: View {
 struct ShutterButton: View {
     var isEnabled: Bool
     var isDimmed: Bool
+    var isCountingDown = false
     var action: () -> Void
 
     var body: some View {
@@ -569,9 +628,15 @@ struct ShutterButton: View {
             ZStack {
                 Circle()
                     .strokeBorder(Color.white, lineWidth: 4)
-                Circle()
-                    .fill(Color.white)
-                    .padding(9)
+                if isCountingDown {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.white)
+                        .frame(width: 28, height: 28)
+                } else {
+                    Circle()
+                        .fill(Color.white)
+                        .padding(9)
+                }
             }
             .frame(width: 76, height: 76)
             .contentShape(Circle())
@@ -579,7 +644,7 @@ struct ShutterButton: View {
         .buttonStyle(ShutterButtonStyle())
         .disabled(!isEnabled)
         .opacity(isDimmed ? 0.4 : 1)
-        .accessibilityLabel("Take Photo")
+        .accessibilityLabel(isCountingDown ? "Cancel Timer" : "Take Photo")
     }
 }
 

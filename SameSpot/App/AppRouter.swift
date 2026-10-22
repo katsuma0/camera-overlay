@@ -6,10 +6,10 @@ final class AppRouter: ObservableObject {
     static let shared = AppRouter()
 
     enum Tab: Hashable {
-        case camera, library, projects
+        case projects, camera, library, settings
     }
 
-    @Published var tab: Tab = .camera {
+    @Published var tab: Tab = .projects {
         // Leaving the camera abandons a retake. Otherwise tomorrow's reminder would land in it.
         didSet { if tab != .camera { retakeProjectID = nil } }
     }
@@ -30,9 +30,10 @@ final class AppRouter: ObservableObject {
         }
         // Launch argument for screenshots and testing, e.g. -launchTab library
         switch defaults.string(forKey: "launchTab") {
+        case "camera": tab = .camera
         case "library": tab = .library
-        case "projects": tab = .projects
-        default: tab = .camera
+        case "settings": tab = .settings
+        default: tab = .projects
         }
     }
 
