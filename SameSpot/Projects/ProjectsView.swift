@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProjectsView: View {
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var router: AppRouter
     @State private var showingNewProject = false
 
     var body: some View {
@@ -41,6 +42,9 @@ struct ProjectsView: View {
             }
             .sheet(isPresented: $showingNewProject) {
                 NewProjectView()
+            }
+            .onChange(of: router.reminderTapCount) {
+                showingNewProject = false
             }
         }
     }

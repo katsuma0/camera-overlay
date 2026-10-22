@@ -30,6 +30,9 @@ struct CameraTab: View {
         .sheet(isPresented: $showingNewProject) {
             NewProjectView()
         }
+        .onChange(of: router.reminderTapCount) {
+            showingNewProject = false
+        }
     }
 
     private var emptyState: some View {

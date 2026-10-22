@@ -4,8 +4,13 @@ import UserNotifications
 enum NotificationScheduler {
     static let projectKey = "projectID"
 
-    static func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    /// Calls back on the main queue with whether reminders are allowed.
+    static func requestAuthorization(then completion: @escaping (Bool) -> Void = { _ in }) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            DispatchQueue.main.async {
+                completion(granted)
+            }
+        }
     }
 
     static func isDenied() async -> Bool {
@@ -20,12 +25,14 @@ enum NotificationScheduler {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
 
-        // No original means nothing to line up with yet, so no reminders.
-        for project in projects where project.hasTemplate {
+        for project in projects {
             for (index, components) in project.reminders.triggerComponents().enumerated() {
                 let content = UNMutableNotificationContent()
                 content.title = project.name
-                content.body = "Time for today's photo. Same spot, same angle."
+                // A project without an original still reminds, since tapping opens the camera ready to take it.
+                content.body = project.hasTemplate
+                    ? "Time for today's photo. Same spot, same angle."
+                    : "Time to take the original photo for this spot."
                 content.sound = .default
                 content.threadIdentifier = project.id.uuidString
                 content.userInfo = [projectKey: project.id.uuidString]

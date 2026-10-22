@@ -44,7 +44,10 @@ struct NewProjectView: View {
     private func create() {
         let project = store.createProject(name: trimmedName, reminders: reminders)
         if reminders.isOn {
-            NotificationScheduler.requestAuthorization()
+            let store = self.store
+            NotificationScheduler.requestAuthorization { granted in
+                if granted { NotificationScheduler.sync(store.projects) }
+            }
         }
         // The camera tab sees a project with no original and asks for one.
         router.openCamera(for: project.id)

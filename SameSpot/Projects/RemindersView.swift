@@ -5,6 +5,7 @@ struct RemindersView: View {
 
     @EnvironmentObject private var store: ProjectStore
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var schedule: ReminderSchedule
     @State private var notificationsDenied = false
 
@@ -32,11 +33,18 @@ struct RemindersView: View {
         .onChange(of: schedule) { oldValue, newValue in
             store.setReminders(newValue, for: projectID)
             if newValue.isOn && !oldValue.isOn {
-                NotificationScheduler.requestAuthorization()
+                let store = self.store
+                NotificationScheduler.requestAuthorization { granted in
+                    if granted { NotificationScheduler.sync(store.projects) }
+                    notificationsDenied = !granted
+                }
             }
         }
-        .task {
-            notificationsDenied = await NotificationScheduler.isDenied()
+        // Checked again on return from Settings, where the user may have just turned them on.
+        .task(id: scenePhase) {
+            if scenePhase == .active {
+                notificationsDenied = await NotificationScheduler.isDenied()
+            }
         }
     }
 }

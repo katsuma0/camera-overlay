@@ -5,6 +5,7 @@ private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 2), co
 /// Every photo from every project, newest first, one section per project.
 struct LibraryView: View {
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var router: AppRouter
     @State private var viewerItem: ViewerItem?
 
     private var projectsWithPhotos: [Project] {
@@ -46,6 +47,9 @@ struct LibraryView: View {
             .fullScreenCover(item: $viewerItem) { item in
                 PhotoViewer(projectID: item.projectID, startFrameID: item.frameID)
             }
+            .onChange(of: router.reminderTapCount) {
+                viewerItem = nil
+            }
         }
     }
 }
@@ -55,6 +59,7 @@ struct ProjectPhotosView: View {
     let projectID: UUID
 
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var router: AppRouter
     @State private var viewerItem: ViewerItem?
 
     var body: some View {
@@ -81,6 +86,9 @@ struct ProjectPhotosView: View {
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $viewerItem) { item in
             PhotoViewer(projectID: item.projectID, startFrameID: item.frameID)
+        }
+        .onChange(of: router.reminderTapCount) {
+            viewerItem = nil
         }
     }
 }

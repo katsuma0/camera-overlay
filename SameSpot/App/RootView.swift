@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var store: ProjectStore
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $router.tab) {
@@ -18,6 +19,13 @@ struct RootView: View {
         }
         .onChange(of: store.reminderSignature, initial: true) {
             NotificationScheduler.sync(store.projects)
+        }
+        // iOS drops reminders added before permission is granted. The permission alert and a
+        // trip to Settings both send the app inactive, so coming back active is the moment to retry.
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                NotificationScheduler.sync(store.projects)
+            }
         }
     }
 }

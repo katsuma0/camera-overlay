@@ -111,6 +111,12 @@ struct ProjectDetailView: View {
                 store.rename(project.id, to: draftName)
             }
         }
+        // A reminder tap switches to the camera. Anything open here would sit on top of it.
+        .onChange(of: router.reminderTapCount) {
+            showingVideo = false
+            showingRename = false
+            confirmingDelete = false
+        }
         .confirmationDialog("Delete \(project.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button(deleteTitle(project), role: .destructive) {
                 store.deleteProject(project.id)

@@ -41,7 +41,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         if let raw = userInfo[NotificationScheduler.projectKey] as? String, let id = UUID(uuidString: raw) {
             DispatchQueue.main.async {
-                AppRouter.shared.openCamera(for: id)
+                AppRouter.shared.openFromReminder(id)
             }
         }
         completionHandler()

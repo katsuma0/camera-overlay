@@ -13,7 +13,9 @@ struct CaptureView: View {
     @AppStorage("showGrid") private var showGrid = true
     @State private var opacity: Double = 0.35
     @State private var overlayImage: UIImage?
-    @State private var isPeeking = false
+    // Gesture state resets itself if the hold is interrupted (a call, Control Center), so the
+    // guide can't get stuck at full strength.
+    @GestureState private var isPeeking = false
     @State private var review: Review?
     @State private var flashOpacity: Double = 0
     @State private var toast: Toast?
@@ -84,14 +86,21 @@ struct CaptureView: View {
         .onChange(of: project.id, initial: true) {
             opacity = project.overlayOpacity
             review = nil
-            isPeeking = false
+            // Never draw the last project's guide over this one while its own decodes.
+            overlayImage = overlayURL.flatMap { ImageLoader.shared.cachedImage(at: $0, maxPixel: 1600) }
+        }
+        .onChange(of: router.reminderTapCount) {
+            viewerItem = nil
         }
         .task(id: overlayURL) {
             guard let url = overlayURL else {
                 overlayImage = nil
                 return
             }
-            overlayImage = await ImageLoader.shared.image(at: url, maxPixel: 1600)
+            let image = await ImageLoader.shared.image(at: url, maxPixel: 1600)
+            // A newer guide was asked for while this one decoded.
+            guard !Task.isCancelled else { return }
+            overlayImage = image
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: shutterCount)
         .alert("Couldn't Take Photo", isPresented: errorBinding) {
@@ -149,7 +158,7 @@ struct CaptureView: View {
         Binding {
             project.id
         } set: { id in
-            router.cameraProjectID = id
+            router.openCamera(for: id)
         }
     }
 
@@ -394,8 +403,7 @@ struct CaptureView: View {
                 // Hold to see the guide at full strength, let go to go back.
                 .gesture(
                     DragGesture(minimumDistance: 0)
-                        .onChanged { _ in isPeeking = true }
-                        .onEnded { _ in isPeeking = false }
+                        .updating($isPeeking) { _, peeking, _ in peeking = true }
                 )
                 .accessibilityLabel("Hold to compare")
                 .accessibilityAddTraits(.isButton)
@@ -448,13 +456,14 @@ struct CaptureView: View {
     }
 
     private func useOriginal(_ review: Review) {
+        let isFirst = store.project(review.projectID)?.hasTemplate == false
         do {
             try store.setTemplate(review.photo, for: review.projectID)
             if router.retakeProjectID == review.projectID {
                 router.retakeProjectID = nil
             }
             self.review = nil
-            showToast("Original saved. Come back tomorrow.")
+            showToast(isFirst ? "Original saved. It's photo 1 of the timelapse." : "New original saved.")
         } catch {
             errorMessage = error.localizedDescription
         }

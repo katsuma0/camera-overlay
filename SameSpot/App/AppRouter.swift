@@ -9,12 +9,17 @@ final class AppRouter: ObservableObject {
         case camera, library, projects
     }
 
-    @Published var tab: Tab = .camera
+    @Published var tab: Tab = .camera {
+        // Leaving the camera abandons a retake. Otherwise tomorrow's reminder would land in it.
+        didSet { if tab != .camera { retakeProjectID = nil } }
+    }
     @Published var cameraProjectID: UUID? = nil {
         didSet { UserDefaults.standard.set(cameraProjectID?.uuidString, forKey: Self.cameraProjectKey) }
     }
     /// Set when someone asks to reshoot a project's original photo.
     @Published var retakeProjectID: UUID? = nil
+    /// Goes up by one on every reminder tap, so open sheets and viewers know to get out of the way.
+    @Published private(set) var reminderTapCount = 0
 
     private static let cameraProjectKey = "cameraProjectID"
 
@@ -32,12 +37,18 @@ final class AppRouter: ObservableObject {
     }
 
     func openCamera(for projectID: UUID) {
+        retakeProjectID = nil
         cameraProjectID = projectID
         tab = .camera
     }
 
-    func retakeOriginal(for projectID: UUID) {
-        retakeProjectID = projectID
+    func openFromReminder(_ projectID: UUID) {
+        reminderTapCount += 1
         openCamera(for: projectID)
+    }
+
+    func retakeOriginal(for projectID: UUID) {
+        openCamera(for: projectID)
+        retakeProjectID = projectID
     }
 }
