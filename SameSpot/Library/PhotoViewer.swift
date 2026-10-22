@@ -139,7 +139,20 @@ struct FullPhotoView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: url) {
-            image = await ImageLoader.shared.image(at: url, maxPixel: 2400)
+            if image == nil {
+                image = await ImageLoader.shared.image(at: url, maxPixel: 300)
+            }
+            // Scrubbing flies past pages. Only decode full size once the page has been on screen a moment.
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            let full = await ImageLoader.shared.image(at: url, maxPixel: 2400)
+            if !Task.isCancelled, let full {
+                image = full
+            }
+        }
+        // Pages keep their state, so let go of the big image once this one is off screen.
+        .onDisappear {
+            image = ImageLoader.shared.cachedImage(at: url, maxPixel: 300)
         }
     }
 }
