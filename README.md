@@ -22,6 +22,8 @@ Reminders are a list of times and a set of days. Morning and night every day is 
 
 The camera is locked to the back 1x lens, and every photo in a project is taken at the orientation of the original, even if the phone is held differently. A landscape project stays landscape. Photos are saved as 12 MP HEIC in the app's own folder, not your camera roll.
 
+The library shows when each photo was taken, sorts newest or oldest first, and the full screen viewer swipes in the same order. A bar with one tick per photo along the bottom lets you drag through a whole project.
+
 Make Timelapse turns the photos into an MP4 at 6, 12, 24 or 30 photos per second. Standard is 1440 × 1080 H.264, which plays anywhere. High is 2880 × 2160 HEVC. You can share it or save it to Photos.
 
 ## Things it doesn't do yet
