@@ -88,6 +88,20 @@ jobs:
             echo "=====END $TAB====="
           done
 
+      - name: Viewer screenshot
+        if: matrix.xcode == 'newest'
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices booted -j | jq -r '[.devices[][]] | first | .udid')
+          xcrun simctl terminate "$UDID" com.katsumaonishi.SameSpot || true
+          xcrun simctl launch "$UDID" com.katsumaonishi.SameSpot -launchTab library -demo -openFirstPhoto
+          sleep 8
+          xcrun simctl io "$UDID" screenshot shots/viewer.png
+          sips -Z 640 -s format jpeg -s formatOptions 70 shots/viewer.png --out small/viewer.jpg > /dev/null
+          echo "=====BEGIN viewer====="
+          base64 -i small/viewer.jpg | fold -w 120
+          echo "=====END viewer====="
+
       - name: Upload screenshots
         if: matrix.xcode == 'newest'
         uses: actions/upload-artifact@v4

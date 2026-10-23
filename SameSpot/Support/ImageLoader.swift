@@ -11,6 +11,8 @@ final class ImageLoader {
 
     private init() {
         cache.countLimit = 300
+        // Full screen decodes are about 17 MB each. Cap the total, not just the count.
+        cache.totalCostLimit = 200 * 1024 * 1024
     }
 
     func cachedImage(at url: URL, maxPixel: Int) -> UIImage? {
@@ -22,11 +24,18 @@ final class ImageLoader {
         if let hit = cache.object(forKey: key) {
             return hit
         }
-        let image = await Task.detached(priority: .userInitiated) {
-            ImageLoader.cgImage(at: url, maxPixel: maxPixel).map { UIImage(cgImage: $0) }
-        }.value
-        if let image {
-            cache.setObject(image, forKey: key)
+        let work = Task.detached(priority: .userInitiated) { () -> UIImage? in
+            // Skip decodes for views that scrolled away before their turn came up.
+            guard !Task.isCancelled else { return nil }
+            return ImageLoader.cgImage(at: url, maxPixel: maxPixel).map { UIImage(cgImage: $0) }
+        }
+        let image = await withTaskCancellationHandler {
+            await work.value
+        } onCancel: {
+            work.cancel()
+        }
+        if let image, let cgImage = image.cgImage {
+            cache.setObject(image, forKey: key, cost: cgImage.bytesPerRow * cgImage.height)
         }
         return image
     }
@@ -87,7 +96,9 @@ struct ThumbnailView: View {
                 image = nil
                 return
             }
-            image = await ImageLoader.shared.image(at: url, maxPixel: maxPixel)
+            let loaded = await ImageLoader.shared.image(at: url, maxPixel: maxPixel)
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
     }
 }
