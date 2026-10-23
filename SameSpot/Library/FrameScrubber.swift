@@ -6,7 +6,7 @@ struct FrameScrubber: View {
     let count: Int
     @Binding var index: Int
 
-    @AppStorage("haptics") private var haptics = true
+    @AppStorage(SettingsKey.haptics) private var haptics = true
     /// Counts index changes made by dragging, so page swipes don't buzz too.
     @State private var scrubTicks = 0
 

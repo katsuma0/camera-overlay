@@ -152,7 +152,9 @@ final class CameraModel: NSObject, ObservableObject {
 
     /// Takes a photo. Pass the project's angle once it has one so the frame matches the original
     /// no matter how the phone is held. Pass nil for a first original to use the phone's actual orientation.
-    func capture(lockedAngle: Double?, completion: @escaping (Result<CapturedPhoto, Error>) -> Void) {
+    func capture(lockedAngle: Double?,
+                 flash: FlashSetting = .off,
+                 completion: @escaping (Result<CapturedPhoto, Error>) -> Void) {
         guard !isCapturing else { return }
         isCapturing = true
         let finish: (Result<CapturedPhoto, Error>) -> Void = { result in
@@ -187,6 +189,15 @@ final class CameraModel: NSObject, ObservableObject {
             let codec: AVVideoCodecType = useHEVC ? .hevc : .jpeg
             let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: codec])
             settings.maxPhotoDimensions = self.photoOutput.maxPhotoDimensions
+            let flashMode: AVCaptureDevice.FlashMode
+            switch flash {
+            case .off: flashMode = .off
+            case .auto: flashMode = .auto
+            case .on: flashMode = .on
+            }
+            if self.photoOutput.supportedFlashModes.contains(flashMode) {
+                settings.flashMode = flashMode
+            }
 
             let id = settings.uniqueID
             let delegate = PhotoCaptureDelegate(angle: angle, fileExtension: useHEVC ? "heic" : "jpg") { result in

@@ -157,6 +157,20 @@ final class ProjectStore: ObservableObject {
 
     // MARK: Disk
 
+    /// Bytes on disk under a folder. Walks every file, so call it off the main thread.
+    static func diskUsage(at folder: URL) -> Int64 {
+        let keys: Set<URLResourceKey> = [.totalFileAllocatedSizeKey, .isRegularFileKey]
+        guard let files = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: Array(keys)) else {
+            return 0
+        }
+        var total: Int64 = 0
+        for case let file as URL in files {
+            guard let values = try? file.resourceValues(forKeys: keys), values.isRegularFile == true else { continue }
+            total += Int64(values.totalFileAllocatedSize ?? 0)
+        }
+        return total
+    }
+
     private func index(of projectID: UUID) -> Int? {
         projects.firstIndex { $0.id == projectID }
     }
