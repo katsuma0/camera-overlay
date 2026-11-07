@@ -61,6 +61,18 @@ jobs:
           echo "Warnings:"
           grep -E "\.swift:[0-9]+:[0-9]+: warning:" sim.log | sort -u || true
 
+      # The App Store rejects a build without these, so check they made it into the bundle.
+      - name: Check app bundle
+        run: |
+          set -euo pipefail
+          APP=build/sim/Build/Products/Debug-iphonesimulator/SameSpot.app
+          test -f "$APP/PrivacyInfo.xcprivacy"
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          for KEY in ITSAppUsesNonExemptEncryption NSCameraUsageDescription NSPhotoLibraryAddUsageDescription; do
+            VALUE=$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$APP/Info.plist")
+            echo "$KEY: $VALUE"
+          done
+
       # Launches the app with the demo project and photographs each tab, so layout problems
       # show up in review without anyone opening Xcode.
       - name: Screenshots

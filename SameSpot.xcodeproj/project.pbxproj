@@ -255,6 +255,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Same Spot";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Same Spot uses the camera to take each photo in your projects.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Same Spot saves finished timelapse videos to your photo library.";
@@ -287,6 +288,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Same Spot";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Same Spot uses the camera to take each photo in your projects.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Same Spot saves finished timelapse videos to your photo library.";
