@@ -1,3 +1,4 @@
+import AudioToolbox
 import SwiftUI
 import UserNotifications
 
@@ -7,6 +8,7 @@ struct SettingsView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceSetting = .system
+    @AppStorage(SettingsKey.reminderSound) private var reminderSound: ReminderSound = .standard
 
     @State private var notificationStatus: UNAuthorizationStatus?
     @State private var spaceUsed: String?
@@ -41,8 +43,18 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    Picker("Sound", selection: $reminderSound) {
+                        ForEach(ReminderSound.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
                 } header: {
                     Text("Reminders")
+                }
+                // Pending reminders keep the sound they were made with, so rebuild them.
+                .onChange(of: reminderSound) {
+                    NotificationScheduler.sync(store.projects)
+                    preview(reminderSound)
                 }
 
                 Section("Storage") {
@@ -115,6 +127,24 @@ struct SettingsView: View {
         } label: {
             Text(title)
                 .foregroundStyle(Color.primary)
+        }
+    }
+
+    /// Plays the choice once so you know what you picked.
+    private func preview(_ sound: ReminderSound) {
+        switch sound {
+        case .standard:
+            AudioServicesPlaySystemSound(1007)
+        case .silent:
+            break
+        case .chime, .click:
+            guard let name = sound.fileName,
+                  let url = Bundle.main.url(forResource: name, withExtension: nil) else { return }
+            var id: SystemSoundID = 0
+            AudioServicesCreateSystemSoundID(url as CFURL, &id)
+            AudioServicesPlaySystemSoundWithCompletion(id) {
+                AudioServicesDisposeSystemSoundID(id)
+            }
         }
     }
 

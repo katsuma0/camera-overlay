@@ -68,6 +68,9 @@ jobs:
           APP=build/sim/Build/Products/Debug-iphonesimulator/SameSpot.app
           test -f "$APP/PrivacyInfo.xcprivacy"
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          # Notification sounds must sit at the top of the bundle or iOS plays the default instead.
+          test -f "$APP/chime.wav"
+          test -f "$APP/click.wav"
           for KEY in ITSAppUsesNonExemptEncryption NSCameraUsageDescription NSPhotoLibraryAddUsageDescription; do
             VALUE=$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$APP/Info.plist")
             echo "$KEY: $VALUE"

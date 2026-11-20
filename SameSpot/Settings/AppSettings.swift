@@ -7,6 +7,7 @@ enum SettingsKey {
     static let flash = "flash"
     static let timer = "timerSeconds"
     static let appearance = "appearance"
+    static let reminderSound = "reminderSound"
 }
 
 enum FlashSetting: String, CaseIterable, Identifiable {
@@ -79,5 +80,37 @@ enum AppearanceSetting: String, CaseIterable, Identifiable {
         case .light: return .light
         case .dark: return .dark
         }
+    }
+}
+
+/// What a reminder plays. iOS only lets an app use the system default or sounds it ships with,
+/// so the other two are short files in SameSpot/Sounds.
+enum ReminderSound: String, CaseIterable, Identifiable {
+    case standard
+    case chime
+    case click
+    case silent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .standard: return "iPhone Default"
+        case .chime: return "Chime"
+        case .click: return "Click"
+        case .silent: return "None"
+        }
+    }
+
+    var fileName: String? {
+        switch self {
+        case .chime: return "chime.wav"
+        case .click: return "click.wav"
+        case .standard, .silent: return nil
+        }
+    }
+
+    static var current: ReminderSound {
+        UserDefaults.standard.string(forKey: SettingsKey.reminderSound).flatMap(ReminderSound.init(rawValue:)) ?? .standard
     }
 }
