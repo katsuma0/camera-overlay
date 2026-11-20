@@ -56,8 +56,6 @@ struct ReminderEditorSections: View {
     var body: some View {
         Section {
             Toggle("Remind Me", isOn: $schedule.isOn)
-        } footer: {
-            Text("You get a notification at each time on the days you pick. Tap it and the camera opens on this project.")
         }
 
         if schedule.isOn {
@@ -83,8 +81,6 @@ struct ReminderEditorSections: View {
                 WeekdayPicker(selection: $schedule.weekdays)
             } header: {
                 Text("Repeat")
-            } footer: {
-                Text(schedule.daysSummary)
             }
         }
     }

@@ -59,10 +59,6 @@ struct ProjectDetailView: View {
                     Label("Make Timelapse", systemImage: "film")
                 }
                 .disabled(project.frames.count < 2)
-            } footer: {
-                if project.frames.count < 2 {
-                    Text("Take at least two photos and there's a video to make.")
-                }
             }
 
             Section {
@@ -85,8 +81,6 @@ struct ProjectDetailView: View {
                 } set: { isOn in
                     store.setOverlaySource(isOn ? .latest : .original, for: project.id)
                 })
-            } footer: {
-                Text("The camera lines up with your last photo instead of the original, so you can move things a little between shots.")
             }
 
             Section {
@@ -101,10 +95,6 @@ struct ProjectDetailView: View {
                 }
                 Button("Delete Project", role: .destructive) {
                     confirmingDelete = true
-                }
-            } footer: {
-                if project.hasTemplate {
-                    Text("Retaking the original changes the guide. The photos you already have stay.")
                 }
             }
         }

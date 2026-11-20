@@ -36,7 +36,7 @@ struct LibraryView: View {
                     )
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: gridColumns, spacing: 2, pinnedViews: [.sectionHeaders]) {
+                        LazyVGrid(columns: gridColumns, spacing: 2) {
                             ForEach(projectsWithPhotos) { project in
                                 Section {
                                     FrameCells(project: project, newestFirst: newestFirst) { frame in
@@ -51,6 +51,8 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
+            // A solid bar, so photos scrolling underneath don't show through the title.
+            .toolbarBackground(.visible, for: .navigationBar)
             #if DEBUG
             // Launch argument so CI can screenshot the viewer without tapping anything.
             .onAppear {
@@ -211,7 +213,7 @@ struct LibrarySectionHeader: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.bar)
+        .padding(.top, 18)
+        .padding(.bottom, 8)
     }
 }
