@@ -6,15 +6,11 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
-    @AppStorage(SettingsKey.showGrid) private var showGrid = true
-    @AppStorage(SettingsKey.flash) private var flash: FlashSetting = .off
-    @AppStorage(SettingsKey.timer) private var timerSeconds = 0
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceSetting = .system
-    @AppStorage(SettingsKey.haptics) private var haptics = true
-    @AppStorage(SettingsKey.shutterBlink) private var shutterBlink = true
 
     @State private var notificationStatus: UNAuthorizationStatus?
     @State private var spaceUsed: String?
+    @State private var showingPrivacyPolicy = false
 
     private var photoCount: Int {
         store.projects.reduce(0) { $0 + $1.frames.count }
@@ -23,25 +19,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Toggle("Grid", isOn: $showGrid)
-                    Picker("Flash", selection: $flash) {
-                        ForEach(FlashSetting.allCases) { option in
-                            Text(option.title).tag(option)
-                        }
-                    }
-                    Picker("Timer", selection: $timerSeconds) {
-                        ForEach(TimerSetting.options, id: \.self) { seconds in
-                            Text(TimerSetting.title(seconds)).tag(seconds)
-                        }
-                    }
-                } header: {
-                    Text("Camera")
-                } footer: {
-                    Text("Flash changes the light from one photo to the next, so leave it off unless the spot is dark. The timer helps when the phone is propped on something.")
-                }
-
-                Section {
+                Section("Appearance") {
                     Picker("Appearance", selection: $appearance) {
                         ForEach(AppearanceSetting.allCases) { option in
                             Text(option.title).tag(option)
@@ -49,19 +27,6 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                } header: {
-                    Text("Appearance")
-                } footer: {
-                    Text("The camera stays dark either way.")
-                }
-
-                Section {
-                    Toggle("Haptics", isOn: $haptics)
-                    Toggle("Shutter Blink", isOn: $shutterBlink)
-                } header: {
-                    Text("Accessibility")
-                } footer: {
-                    Text("Shutter Blink darkens the screen for a moment when a photo is taken. It's skipped when Reduce Motion is on. Text size and bold text follow your iPhone's settings.")
                 }
 
                 Section {
@@ -78,8 +43,6 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Reminders")
-                } footer: {
-                    Text("Reminder times are set on each project's page.")
                 }
 
                 Section("Storage") {
@@ -92,9 +55,18 @@ struct SettingsView: View {
                     NavigationLink("About Same Spot") {
                         AboutView()
                     }
+                    Button {
+                        showingPrivacyPolicy = true
+                    } label: {
+                        Text("Privacy Policy")
+                            .foregroundStyle(Color.primary)
+                    }
                 }
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $showingPrivacyPolicy) {
+                PrivacyPolicyView()
+            }
             // Re-checked on return from the iPhone's Settings app.
             .task(id: scenePhase) {
                 if scenePhase == .active {
@@ -178,8 +150,6 @@ struct AboutView: View {
                         Label("katsuma.ca", systemImage: "globe")
                     }
                 }
-            } footer: {
-                Text("Made by Katsuma Onishi.")
             }
         }
         .navigationTitle("About")

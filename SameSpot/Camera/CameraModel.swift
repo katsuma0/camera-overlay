@@ -30,6 +30,10 @@ final class CameraModel: NSObject, ObservableObject {
 
     @Published private(set) var status: Status = .idle
     @Published private(set) var isCapturing = false
+    /// Goes up when the lens changes, so the preview can set its rotation on the new connection.
+    @Published private(set) var lensChanges = 0
+    /// Zoom levels this phone can do. 0.5 needs the ultra wide lens; 2 and 3 crop the main one.
+    @Published private(set) var zoomOptions: [Double] = CameraModel.isSimulator ? [0.5, 1, 2, 3] : [1, 2, 3]
 
     let session = AVCaptureSession()
 
@@ -48,6 +52,10 @@ final class CameraModel: NSObject, ObservableObject {
     private var isConfigured = false
     private var wantsRunning = false
     private var inFlight: [Int64: PhotoCaptureDelegate] = [:]
+    private var wideDevice: AVCaptureDevice?
+    private var ultraWideDevice: AVCaptureDevice?
+    private var activeInput: AVCaptureDeviceInput?
+    private var requestedZoom: Double = 1
 
     override init() {
         super.init()
@@ -116,6 +124,12 @@ final class CameraModel: NSObject, ObservableObject {
     private func configure() {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else { return }
+        // Physical lenses only, never the multi-lens virtual camera, which swaps lenses on its own
+        // in low light or up close and would shift the framing between photos.
+        wideDevice = device
+        ultraWideDevice = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back)
+        let options: [Double] = ultraWideDevice == nil ? [1, 2, 3] : [0.5, 1, 2, 3]
+        DispatchQueue.main.async { self.zoomOptions = options }
 
         session.beginConfiguration()
         if session.canSetSessionPreset(.photo) {
@@ -128,17 +142,67 @@ final class CameraModel: NSObject, ObservableObject {
         session.addInput(input)
         session.addOutput(photoOutput)
         session.commitConfiguration()
+        activeInput = input
 
-        // The active format only settles after commit. Cap at 12 MP: plenty for a 4K video,
-        // and a year of twice-a-day photos stays a reasonable size.
+        settle(on: device)
+        isConfigured = true
+        applyZoom()
+    }
+
+    /// The active format only settles after commit. Cap at 12 MP: plenty for a 4K video,
+    /// and a year of twice-a-day photos stays a reasonable size.
+    private func settle(on device: AVCaptureDevice) {
         let dimensions = device.activeFormat.supportedMaxPhotoDimensions
         let capped = dimensions.filter { $0.width <= 4032 }
         if let best = capped.max(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) }) ?? dimensions.first {
             photoOutput.maxPhotoDimensions = best
         }
-
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
-        isConfigured = true
+    }
+
+    // MARK: Zoom
+
+    /// Remembered even before the camera starts, and applied once it does.
+    func setZoom(_ zoom: Double) {
+        guard !Self.isSimulator else { return }
+        queue.async {
+            self.requestedZoom = zoom
+            guard self.isConfigured else { return }
+            self.applyZoom()
+        }
+    }
+
+    private func applyZoom() {
+        let useUltraWide = requestedZoom < 1 && ultraWideDevice != nil
+        guard let device = useUltraWide ? ultraWideDevice : wideDevice else { return }
+
+        if activeInput?.device != device, let input = try? AVCaptureDeviceInput(device: device) {
+            session.beginConfiguration()
+            if let old = activeInput {
+                session.removeInput(old)
+            }
+            if session.canAddInput(input) {
+                session.addInput(input)
+                activeInput = input
+            } else if let old = activeInput, session.canAddInput(old) {
+                session.addInput(old)
+            }
+            session.commitConfiguration()
+            if let current = activeInput?.device {
+                settle(on: current)
+            }
+            DispatchQueue.main.async { self.lensChanges += 1 }
+        }
+
+        guard let current = activeInput?.device else { return }
+        let factor = useUltraWide ? 1 : max(1, requestedZoom)
+        do {
+            try current.lockForConfiguration()
+            current.videoZoomFactor = min(CGFloat(factor), current.activeFormat.videoMaxZoomFactor)
+            current.unlockForConfiguration()
+        } catch {
+            // Leave the zoom where it was. The camera still works.
+        }
     }
 
     @objc private func sessionRuntimeError(_ notification: Notification) {

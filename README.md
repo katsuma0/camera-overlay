@@ -16,15 +16,15 @@ The simulator has no camera, so the app draws a fake backyard instead. Every but
 
 A project is one spot. Making one asks for a name and when you want reminders, then opens the camera so you can take the original. The original is also day one of the video.
 
-From then on the camera ghosts the original over the live view at 35% strength. The slider changes that. If a scene has changed so much that the original doesn't help anymore (snow, leaves gone), switch the guide to your last photo instead. Flash, a 3 or 10 second timer, and a grid sit along the top of the camera.
+From then on the camera ghosts the original over the live view at 35% strength. The slider changes that. If a scene has changed so much that the original doesn't help anymore (snow, leaves gone), switch the guide to your last photo instead. Flash, a 3 or 10 second timer, and a grid sit along the top of the camera, and zoom buttons (.5, 1, 2, 3) sit at the bottom of the viewfinder. Each project remembers its zoom. Turn on Stop Motion in a project and the camera lines up with your last photo instead of the original.
 
 Reminders are a list of times and a set of days. Morning and night every day is two times and all seven days. Tapping a reminder opens the camera on that project.
 
-The camera is locked to the back 1x lens, and every photo in a project is taken at the orientation of the original, even if the phone is held differently. A landscape project stays landscape. Photos are saved as 12 MP HEIC in the app's own folder, not your camera roll.
+The camera uses one lens at a time and never lets iOS swap lenses on its own, and every photo in a project is taken at the orientation of the original, even if the phone is held differently. A landscape project stays landscape. Photos are saved as 12 MP HEIC in the app's own folder, not your camera roll.
 
 The library shows when each photo was taken, sorts newest or oldest first, and the full screen viewer swipes in the same order. A bar with one tick per photo along the bottom lets you drag through a whole project.
 
-Settings has the camera defaults, light or dark mode, haptics, the shutter blink, notification status, how much space the photos take, and an About page.
+Settings has light or dark mode, notification status, how much space the photos take, an About page and the privacy policy.
 
 Make Timelapse turns the photos into an MP4 at 6, 12, 24 or 30 photos per second. Standard is 1440 × 1080 H.264, which plays anywhere. High is 2880 × 2160 HEVC. You can share it or save it to Photos.
 

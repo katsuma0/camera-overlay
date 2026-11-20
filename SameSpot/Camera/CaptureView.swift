@@ -15,8 +15,6 @@ struct CaptureView: View {
     @AppStorage(SettingsKey.showGrid) private var showGrid = true
     @AppStorage(SettingsKey.flash) private var flash: FlashSetting = .off
     @AppStorage(SettingsKey.timer) private var timerSeconds = 0
-    @AppStorage(SettingsKey.haptics) private var haptics = true
-    @AppStorage(SettingsKey.shutterBlink) private var shutterBlink = true
     @State private var opacity: Double = 0.35
     @State private var overlayImage: UIImage?
     @State private var countdown: Int?
@@ -131,8 +129,10 @@ struct CaptureView: View {
             guard !Task.isCancelled else { return }
             overlayImage = image
         }
-        .sensoryFeedback(trigger: shutterCount) { _, _ in
-            haptics ? SensoryFeedback.impact(weight: .medium) : nil
+        .sensoryFeedback(.impact(weight: .medium), trigger: shutterCount)
+        // Each project keeps its own zoom, so every photo in it has the same framing.
+        .onChange(of: currentZoom, initial: true) {
+            camera.setZoom(currentZoom)
         }
         .alert("Couldn't Take Photo", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -277,6 +277,10 @@ struct CaptureView: View {
                         .padding(.bottom, 14)
                         .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
+                if review == nil && camera.zoomOptions.count > 1 {
+                    zoomBar
+                        .padding(.bottom, 12)
+                }
             }
         }
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
@@ -287,6 +291,7 @@ struct CaptureView: View {
     private var livePreview: some View {
         if CameraModel.isSimulator {
             RotatedImage(image: SimulatedCamera.previewImage, rotation: 0)
+                .scaleEffect(max(currentZoom, 1))
         } else {
             switch camera.status {
             case .unauthorized:
@@ -302,7 +307,7 @@ struct CaptureView: View {
                     showSettings: false
                 )
             case .idle, .running:
-                CameraPreview(session: camera.session)
+                CameraPreview(session: camera.session, lensChanges: camera.lensChanges)
             }
         }
     }
@@ -462,6 +467,40 @@ struct CaptureView: View {
         }
     }
 
+    // MARK: Zoom
+
+    private var currentZoom: Double { project.zoom ?? 1 }
+
+    /// Little round buttons along the bottom of the viewfinder, like the iPhone camera.
+    private var zoomBar: some View {
+        HStack(spacing: 6) {
+            ForEach(camera.zoomOptions, id: \.self) { zoom in
+                let selected = abs(currentZoom - zoom) < 0.01
+                Button {
+                    store.setZoom(zoom, for: project.id)
+                } label: {
+                    Text(Self.zoomLabel(zoom, selected: selected))
+                        .font(.system(size: selected ? 13 : 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(selected ? Color.yellow : Color.white)
+                        .frame(width: selected ? 38 : 30, height: selected ? 38 : 30)
+                        .background(Color.black.opacity(0.5), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Zoom \(Self.zoomLabel(zoom, selected: true))")
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(Color.black.opacity(0.25), in: Capsule())
+        .animation(.snappy, value: currentZoom)
+    }
+
+    static func zoomLabel(_ zoom: Double, selected: Bool) -> String {
+        let number = zoom < 1 ? ".5" : String(Int(zoom))
+        return selected ? number + "×" : number
+    }
+
     // MARK: Actions
 
     /// With the timer on, the shutter starts a countdown, and a second tap cancels it.
@@ -501,7 +540,7 @@ struct CaptureView: View {
         let shot = UUID()
         pendingOriginalShot = currentMode == .frame ? nil : shot
 
-        if shutterBlink && !reduceMotion {
+        if !reduceMotion {
             withAnimation(.easeIn(duration: 0.05)) {
                 flashOpacity = 0.85
             } completion: {

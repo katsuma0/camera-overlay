@@ -1,17 +1,20 @@
 # Same Spot privacy policy
 
-Same Spot doesn't collect anything about you. There are no accounts, no analytics, no ads and no tracking, and the app never sends your photos or anything else to me or anyone else.
+Last updated November 2026
 
-Your photos stay on your iPhone, in Same Spot's own folder. They're included in your iPhone or iCloud backup if you have backups turned on, the same as any app's files. Deleting a photo, a project or the app deletes them from the phone.
+Same Spot does not collect, share or sell any personal information.
 
-The app asks for three permissions, and only uses each for one thing:
+**Your data**
+Everything you add, including photos, projects and reminders, is stored only on your device. It is never sent to us or to anyone else.
 
-- Camera, to take the photos in your projects.
-- Photos (add only), to save a timelapse video when you tap Save to Photos. It can't see or read your photo library.
-- Notifications, for the reminders you set. They're scheduled on the phone itself.
+**Camera and photos**
+The app uses the camera only when you take a photo, and the photo library only when you choose to save a timelapse video. Photos are processed entirely on your device.
 
-If this ever changes, this page will change first, and the date below will move.
+**No tracking**
+The app has no accounts, advertising, analytics or tracking, and does not connect to the internet.
 
-Questions go to me through [katsuma.ca](https://katsuma.ca).
+**Deleting your data**
+You can delete a photo or a whole project at any time, or delete everything by deleting the app.
 
-Last updated November 7, 2026.
+**Changes**
+Any updates to this policy will be posted here.

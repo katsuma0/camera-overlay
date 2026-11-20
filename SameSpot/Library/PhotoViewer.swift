@@ -67,6 +67,12 @@ struct PhotoViewer: View {
                     .padding(.vertical, 8)
             }
         }
+        // Make the fast-loading copies in the background, starting from the photo on screen,
+        // so scrubbing anywhere in the project shows full quality.
+        .task(id: project.frames.count) {
+            let ordered = frames.indices.sorted { abs($0 - index) < abs($1 - index) }
+            await ImageLoader.prepareDisplayCopies(for: ordered.map { store.url(for: frames[$0], in: project) })
+        }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
@@ -121,10 +127,7 @@ struct FullPhotoView: View {
 
     init(url: URL) {
         self.url = url
-        // Start from whatever is already decoded, even the small grid thumbnail, so scrubbing
-        // shows a picture straight away instead of a spinner.
-        let loader = ImageLoader.shared
-        _image = State(initialValue: loader.cachedImage(at: url, maxPixel: 2400) ?? loader.cachedImage(at: url, maxPixel: 300))
+        _image = State(initialValue: ImageLoader.shared.cachedDisplayImage(for: url))
     }
 
     var body: some View {
@@ -134,25 +137,27 @@ struct FullPhotoView: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                ProgressView()
+                Color.clear
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: url) {
+        .onAppear {
+            // The copy on disk decodes in a few milliseconds, so take it straight away
+            // rather than flashing a placeholder while scrubbing.
             if image == nil {
-                image = await ImageLoader.shared.image(at: url, maxPixel: 300)
-            }
-            // Scrubbing flies past pages. Only decode full size once the page has been on screen a moment.
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            guard !Task.isCancelled else { return }
-            let full = await ImageLoader.shared.image(at: url, maxPixel: 2400)
-            if !Task.isCancelled, let full {
-                image = full
+                image = ImageLoader.shared.readyDisplayImage(for: url)
             }
         }
-        // Pages keep their state, so let go of the big image once this one is off screen.
+        .task(id: url) {
+            guard image == nil else { return }
+            let loaded = await ImageLoader.shared.displayImage(for: url)
+            if !Task.isCancelled {
+                image = loaded
+            }
+        }
+        // Pages keep their state, so let go of the image once this one is off screen.
         .onDisappear {
-            image = ImageLoader.shared.cachedImage(at: url, maxPixel: 300)
+            image = nil
         }
     }
 }

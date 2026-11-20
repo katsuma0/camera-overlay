@@ -80,6 +80,16 @@ struct ProjectDetailView: View {
             }
 
             Section {
+                Toggle("Stop Motion", isOn: Binding {
+                    project.overlaySource == .latest
+                } set: { isOn in
+                    store.setOverlaySource(isOn ? .latest : .original, for: project.id)
+                })
+            } footer: {
+                Text("The camera lines up with your last photo instead of the original, so you can move things a little between shots.")
+            }
+
+            Section {
                 Button("Rename") {
                     draftName = project.name
                     showingRename = true
