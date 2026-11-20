@@ -21,8 +21,6 @@ struct NewProjectView: View {
                         .focused($nameFocused)
                         .submitLabel(.done)
                         .onSubmit { if !trimmedName.isEmpty { create() } }
-                } footer: {
-                    Text("One project is one spot. Next you take the original photo, and every photo after lines up with it.")
                 }
                 ReminderEditorSections(schedule: $reminders)
             }
