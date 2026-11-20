@@ -10,7 +10,7 @@ struct SettingsView: View {
 
     @State private var notificationStatus: UNAuthorizationStatus?
     @State private var spaceUsed: String?
-    @State private var showingPrivacyPolicy = false
+    @State private var infoSheet: InfoPage?
 
     private var photoCount: Int {
         store.projects.reduce(0) { $0 + $1.frames.count }
@@ -52,20 +52,18 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    NavigationLink("About Same Spot") {
-                        AboutView()
-                    }
-                    Button {
-                        showingPrivacyPolicy = true
-                    } label: {
-                        Text("Privacy Policy")
-                            .foregroundStyle(Color.primary)
-                    }
+                    infoRow("How to Use", sheet: .howToUse)
+                    infoRow("About Same Spot", sheet: .about)
+                    infoRow("Privacy Policy", sheet: .privacy)
                 }
             }
             .navigationTitle("Settings")
-            .sheet(isPresented: $showingPrivacyPolicy) {
-                PrivacyPolicyView()
+            .sheet(item: $infoSheet) { sheet in
+                switch sheet {
+                case .howToUse: HowToUseView()
+                case .about: AboutView()
+                case .privacy: PrivacyPolicyView()
+                }
             }
             // Re-checked on return from the iPhone's Settings app.
             .task(id: scenePhase) {
@@ -106,53 +104,21 @@ struct SettingsView: View {
         }
     }
 
+    private enum InfoPage: String, Identifiable {
+        case howToUse, about, privacy
+        var id: String { rawValue }
+    }
+
+    private func infoRow(_ title: String, sheet: InfoPage) -> some View {
+        Button {
+            infoSheet = sheet
+        } label: {
+            Text(title)
+                .foregroundStyle(Color.primary)
+        }
+    }
+
     private func refreshNotificationStatus() async {
         notificationStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-    }
-}
-
-struct AboutView: View {
-    private var version: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = info?["CFBundleVersion"] as? String ?? "1"
-        return "\(short) (\(build))"
-    }
-
-    var body: some View {
-        List {
-            Section {
-                VStack(spacing: 10) {
-                    Image("Logo")
-                        .resizable()
-                        .frame(width: 96, height: 96)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .accessibilityHidden(true)
-                    Text("Same Spot")
-                        .font(.title2.weight(.semibold))
-                    Text("Version \(version)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .listRowBackground(Color.clear)
-            }
-
-            Section {
-                Text("I wanted a timelapse of my backyard changing through the seasons, but I couldn't frame the photo the same way twice. So I made this.")
-                    .padding(.vertical, 4)
-            }
-
-            Section {
-                if let site = URL(string: "https://katsuma.ca") {
-                    Link(destination: site) {
-                        Label("katsuma.ca", systemImage: "globe")
-                    }
-                }
-            }
-        }
-        .navigationTitle("About")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
