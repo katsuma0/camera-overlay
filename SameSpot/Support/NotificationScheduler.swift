@@ -24,6 +24,12 @@ enum NotificationScheduler {
     static func sync(_ projects: [Project]) {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
+        let sound: UNNotificationSound?
+        switch ReminderSound.current {
+        case .standard: sound = .default
+        case .silent: sound = nil
+        case .chime, .click: sound = ReminderSound.current.fileName.map { UNNotificationSound(named: UNNotificationSoundName($0)) }
+        }
 
         for project in projects {
             for (index, components) in project.reminders.triggerComponents().enumerated() {
@@ -33,7 +39,7 @@ enum NotificationScheduler {
                 content.body = project.hasTemplate
                     ? "Time for today's photo. Same spot, same angle."
                     : "Time to take the original photo for this spot."
-                content.sound = .default
+                content.sound = sound
                 content.threadIdentifier = project.id.uuidString
                 content.userInfo = [projectKey: project.id.uuidString]
 
