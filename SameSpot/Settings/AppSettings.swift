@@ -7,8 +7,6 @@ enum SettingsKey {
     static let flash = "flash"
     static let timer = "timerSeconds"
     static let appearance = "appearance"
-    static let haptics = "haptics"
-    static let shutterBlink = "shutterBlink"
 }
 
 enum FlashSetting: String, CaseIterable, Identifiable {

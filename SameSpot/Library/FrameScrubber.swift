@@ -6,7 +6,6 @@ struct FrameScrubber: View {
     let count: Int
     @Binding var index: Int
 
-    @AppStorage(SettingsKey.haptics) private var haptics = true
     /// Counts index changes made by dragging, so page swipes don't buzz too.
     @State private var scrubTicks = 0
 
@@ -57,9 +56,7 @@ struct FrameScrubber: View {
         .frame(height: 36)
         // Room for half the knob at each end.
         .padding(.horizontal, knobSize / 2)
-        .sensoryFeedback(trigger: scrubTicks) { _, _ in
-            haptics ? SensoryFeedback.selection : nil
-        }
+        .sensoryFeedback(.selection, trigger: scrubTicks)
         .accessibilityElement()
         .accessibilityLabel("Photo")
         .accessibilityValue("\(index + 1) of \(count)")

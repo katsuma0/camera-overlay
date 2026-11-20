@@ -12,6 +12,9 @@ struct Project: Identifiable, Codable, Hashable {
     var captureAngle: Double = 90
     var overlayOpacity: Double = 0.35
     var overlaySource: OverlaySource = .original
+    /// Camera zoom for this project, like 0.5 or 2. Optional so projects saved before zoom
+    /// existed still load.
+    var zoom: Double?
     var reminders = ReminderSchedule()
     var frames: [Frame] = []
 

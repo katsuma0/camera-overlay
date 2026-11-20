@@ -65,6 +65,78 @@ final class ImageLoader {
     private static func key(_ url: URL, _ maxPixel: Int) -> NSString {
         "\(url.path)#\(maxPixel)" as NSString
     }
+
+    // MARK: Display copies
+
+    /// A 12 MP HEIC takes tens of milliseconds to decode. A screen-size JPEG copy takes a few,
+    /// which is what lets the viewer scrub through a project at full quality. Copies live in
+    /// Caches, so iOS can clear them when space runs low and they get made again.
+    static let displayPixel = 1800
+
+    private static let displayFolder: URL = FileManager.default
+        .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("Display", isDirectory: true)
+
+    /// Photo file names are UUIDs, so the copy can share the name.
+    private static func displayCopyURL(for url: URL) -> URL {
+        displayFolder.appendingPathComponent(url.deletingPathExtension().lastPathComponent + ".jpg")
+    }
+
+    /// Only from memory. Cheap enough to call while building a view.
+    func cachedDisplayImage(for url: URL) -> UIImage? {
+        cache.object(forKey: Self.key(url, Self.displayPixel))
+    }
+
+    /// From memory, or from the copy on disk if one has been made. A few milliseconds,
+    /// so it's fine on the main thread while scrubbing.
+    func readyDisplayImage(for url: URL) -> UIImage? {
+        if let hit = cachedDisplayImage(for: url) { return hit }
+        guard let image = Self.decodeDisplayCopy(for: url) else { return nil }
+        remember(image, for: url)
+        return image
+    }
+
+    /// Makes the copy first if there isn't one yet.
+    func displayImage(for url: URL) async -> UIImage? {
+        if let ready = readyDisplayImage(for: url) { return ready }
+        let image = await Task.detached(priority: .userInitiated) {
+            ImageLoader.makeDisplayCopy(for: url)
+        }.value
+        if let image { remember(image, for: url) }
+        return image
+    }
+
+    /// Makes copies for every photo that doesn't have one, nearest first. Stops if cancelled.
+    static func prepareDisplayCopies(for urls: [URL]) async {
+        await Task.detached(priority: .utility) {
+            for url in urls {
+                if Task.isCancelled { return }
+                if FileManager.default.fileExists(atPath: displayCopyURL(for: url).path) { continue }
+                _ = makeDisplayCopy(for: url)
+            }
+        }.value
+    }
+
+    private func remember(_ image: UIImage, for url: URL) {
+        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 0
+        cache.setObject(image, forKey: Self.key(url, Self.displayPixel), cost: cost)
+    }
+
+    private static func decodeDisplayCopy(for url: URL) -> UIImage? {
+        // preparingForDisplay decodes now, instead of on the first draw.
+        UIImage(contentsOfFile: displayCopyURL(for: url).path)?.preparingForDisplay()
+    }
+
+    private static func makeDisplayCopy(for url: URL) -> UIImage? {
+        if let existing = decodeDisplayCopy(for: url) { return existing }
+        guard let cgImage = cgImage(at: url, maxPixel: displayPixel) else { return nil }
+        let image = UIImage(cgImage: cgImage)
+        if let data = image.jpegData(compressionQuality: 0.9) {
+            try? FileManager.default.createDirectory(at: displayFolder, withIntermediateDirectories: true)
+            try? data.write(to: displayCopyURL(for: url), options: .atomic)
+        }
+        return image
+    }
 }
 
 /// A photo that fills its frame. Parents set the size and clip.

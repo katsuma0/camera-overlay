@@ -98,6 +98,10 @@ final class ProjectStore: ObservableObject {
         modify(projectID) { $0.overlaySource = source }
     }
 
+    func setZoom(_ zoom: Double, for projectID: UUID) {
+        modify(projectID) { $0.zoom = zoom }
+    }
+
     /// Saves a new original. The first one also becomes day one of the timelapse and fixes the
     /// project's orientation. A retake only swaps the guide; the frames already taken stay put.
     func setTemplate(_ photo: CapturedPhoto, for projectID: UUID) throws {

@@ -3,6 +3,8 @@ import SwiftUI
 
 struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    /// Changes when the camera swaps lenses. Each swap brings a new preview connection.
+    var lensChanges = 0
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
@@ -14,7 +16,9 @@ struct CameraPreview: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: PreviewView, context: Context) {}
+    func updateUIView(_ uiView: PreviewView, context: Context) {
+        uiView.setNeedsLayout()
+    }
 
     final class PreviewView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
